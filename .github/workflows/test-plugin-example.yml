@@ -24,24 +24,38 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
-      - name: Init
-        uses: hashicorp/packer-github-actions@master
-        with:
-          working_directory: ${{ github.event.inputs.folder }}
-          command: init
-
-      - name: Validate
-        uses: hashicorp/packer-github-actions@master
-        with:
-          working_directory: ${{ github.event.inputs.folder }}
-          command: validate
-        env:
-          PACKER_LOG: ${{ github.event.inputs.logs }}
-
-      - name: Build
-        uses: hashicorp/packer-github-actions@master
-        with:
-          working_directory: ${{ github.event.inputs.folder }}
-          command: build
-        env:
-          PACKER_LOG: ${{ github.event.inputs.logs }}
+      - run: packer init .
+        working-directory: ${{ github.event.inputs.folder }}
+      - run: packer validate .
+        working-directory: ${{ github.event.inputs.folder }}
+      - run: packer build .
+        working-directory: ${{ github.event.inputs.folder }}
+#      - name: Setup Docker
+#        uses: docker-practice/actions-setup-docker@v1
+#      - run: |
+#          set -x
+#          echo $PATH
+#          which docker
+#          docker version
+#
+#      - name: Init
+#        uses: hashicorp/packer-github-actions@master
+#        with:
+#          working_directory: ${{ github.event.inputs.folder }}
+#          command: init
+#
+#      - name: Validate
+#        uses: hashicorp/packer-github-actions@master
+#        with:
+#          working_directory: ${{ github.event.inputs.folder }}
+#          command: validate
+#        env:
+#          PACKER_LOG: ${{ github.event.inputs.logs }}
+#
+#      - name: Build
+#        uses: hashicorp/packer-github-actions@master
+#        with:
+#          working_directory: ${{ github.event.inputs.folder }}
+#          command: build
+#        env:
+#          PACKER_LOG: ${{ github.event.inputs.logs }}
