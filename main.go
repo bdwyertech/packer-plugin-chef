@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	chefclient "github.com/hashicorp/packer-plugin-chef/provisioner/chef-client"
-	chefsolo "github.com/hashicorp/packer-plugin-chef/provisioner/chef-solo"
+	chefclient "github.com/bdwyertech/packer-plugin-chef/provisioner/chef-client"
+	chefsolo "github.com/bdwyertech/packer-plugin-chef/provisioner/chef-solo"
 
-	"github.com/hashicorp/packer-plugin-chef/version"
+	"github.com/bdwyertech/packer-plugin-chef/version"
 	"github.com/hashicorp/packer-plugin-sdk/plugin"
 )
 
