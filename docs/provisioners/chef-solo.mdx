@@ -9,7 +9,8 @@ nav_title: Chef Solo
 
 # Chef Solo Provisioner
 
-@include 'provisioners/unmaintained-plugin.mdx'
+~> **This community maintained provisioner is currently unmaintained**; if you are interested in contributing or taking ownership of it, please reach out to us at [packer@hashicorp.com](mailto://packer@hashicorp.com). More details can be found in the [README](https://github.com/hashicorp/packer/blob/master/README.md#unmaintained-plugins).
+
 
 Type: `chef-solo`
 
@@ -132,9 +133,114 @@ configuration is actually required, but at least `run_list` is recommended.
 - `version` (string) - The version of Chef to be installed. By default this
   is empty which will install the latest version of Chef.
 
-@include 'provisioners/common-config.mdx'
+Parameters common to all provisioners:
 
-@include 'provisioners/node-attribute-mapping.mdx'
+- `pause_before` (duration) - Sleep for duration before execution.
+
+- `max_retries` (int) - Max times the provisioner will retry in case of failure. Defaults to zero (0). Zero means an error will not be retried.
+
+- `only` (array of string) - Only run the provisioner for listed builder(s)
+  by name.
+
+- `override` (object) - Override the builder with different settings for a
+  specific builder, eg :
+
+  In HCL2:
+
+  ```hcl
+  source "null" "example1" {
+    communicator = "none"
+  }
+
+  source "null" "example2" {
+    communicator = "none"
+  }
+
+  build {
+    sources = ["source.null.example1", "source.null.example2"]
+    provisioner "shell-local" {
+      inline = ["echo not overridden"]
+      override = {
+        example1 = {
+          inline = ["echo yes overridden"]
+        }
+      }
+    }
+  }
+  ```
+
+  In JSON:
+
+  ```json
+  {
+    "builders": [
+      {
+        "type": "null",
+        "name": "example1",
+        "communicator": "none"
+      },
+      {
+        "type": "null",
+        "name": "example2",
+        "communicator": "none"
+      }
+    ],
+    "provisioners": [
+      {
+        "type": "shell-local",
+        "inline": ["echo not overridden"],
+        "override": {
+          "example1": {
+            "inline": ["echo yes overridden"]
+          }
+        }
+      }
+    ]
+  }
+  ```
+
+- `timeout` (duration) - If the provisioner takes more than for example
+  `1h10m1s` or `10m` to finish, the provisioner will timeout and fail.
+
+
+##### Node Attribute Mapping
+
+An arbitrary mapping of JSON that will be available as node attributes while running Chef.
+
+<Tabs>
+<Tab heading="HCL2">
+
+- `json_string` (string) - The JSON string can be encoded using the [jsonencode](/docs/templates/hcl_templates/functions/encoding/jsonencode)
+  template function.
+
+```hcl
+  json_string = jsonencode({
+    "a" = "b"
+    "foo" = {
+      "bar" = "val"
+      "number" = 1
+    }
+  })
+```
+
+</Tab>
+
+<Tab heading="JSON">
+
+- `json` (object) - This option is only available to old-style JSON templates.
+
+```json
+  "json": {
+    "a": "b",
+    "foo": {
+      "bar": "val",
+      "number": 1
+    }
+  }
+```
+
+</Tab>
+</Tabs>
 
 ## Chef Configuration
 
