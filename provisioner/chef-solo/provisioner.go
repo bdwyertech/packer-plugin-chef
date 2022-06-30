@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/packer-plugin-sdk/common"
@@ -63,11 +64,14 @@ type Config struct {
 	// For JSON templates we keep the map[string]interface{}
 	Json        map[string]interface{} `mapstructure:"json" mapstructure-to-hcl2:",skip"`
 	PreventSudo bool                   `mapstructure:"prevent_sudo"`
-	RunList     []string               `mapstructure:"run_list"`
-	SkipInstall bool                   `mapstructure:"skip_install"`
-	StagingDir  string                 `mapstructure:"staging_directory"`
-	GuestOSType string                 `mapstructure:"guest_os_type"`
-	Version     string                 `mapstructure:"version"`
+
+	RetryOnExitCode map[int]bool  `mapstructure:"retry_on_exit_code"`
+	WaitForRetry    time.Duration `mapstructure:"wait_for_retry"`
+	RunList         []string      `mapstructure:"run_list"`
+	SkipInstall     bool          `mapstructure:"skip_install"`
+	StagingDir      string        `mapstructure:"staging_directory"`
+	GuestOSType     string        `mapstructure:"guest_os_type"`
+	Version         string        `mapstructure:"version"`
 
 	ctx interpolate.Context
 }
@@ -145,6 +149,10 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	p.guestCommands, err = guestexec.NewGuestCommands(p.config.GuestOSType, !p.config.PreventSudo)
 	if err != nil {
 		return fmt.Errorf("Invalid guest_os_type: \"%s\"", p.config.GuestOSType)
+	}
+
+	if p.config.WaitForRetry == 0 {
+		p.config.WaitForRetry = 60 * time.Second
 	}
 
 	if p.config.ExecuteCommand == "" {
@@ -467,18 +475,38 @@ func (p *Provisioner) executeChef(ui packersdk.Ui, comm packersdk.Communicator, 
 		return err
 	}
 
-	ui.Message(fmt.Sprintf("Executing Chef: %s", command))
+	for {
+		cmd := &packersdk.RemoteCmd{
+			Command: command,
+		}
 
-	cmd := &packersdk.RemoteCmd{
-		Command: command,
-	}
-	ctx := context.TODO()
-	if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
-		return err
-	}
+		ui.Message(fmt.Sprintf("Executing Chef: %s", command))
+		if err := cmd.RunWithUi(context.Background(), comm, ui); err != nil {
+			return err
+		}
 
-	if cmd.ExitStatus() != 0 {
-		return fmt.Errorf("Non-zero exit status: %d", cmd.ExitStatus())
+		// Allow RFC062 Exit Codes:
+		// https://github.com/chef/chef-rfc/blob/master/rfc062-exit-status.md
+		switch exitStatus := cmd.ExitStatus(); exitStatus {
+		case 0:
+			return nil
+		case 35:
+			ui.Message("Reboot has been scheduled in the run state")
+		case 37:
+			ui.Message("Reboot needs to be completed")
+		case 213:
+			ui.Message("Chef has exited during a client upgrade")
+			continue
+		case packersdk.CmdDisconnect:
+			return fmt.Errorf("received disconnect from remote: exit status: %d", packersdk.CmdDisconnect)
+		default:
+			if !p.config.RetryOnExitCode[exitStatus] {
+				return fmt.Errorf("non-zero exit status: %d", exitStatus)
+			}
+		}
+
+		ui.Message(fmt.Sprintf("Waiting %s before retrying Chef-Client run...", p.config.WaitForRetry))
+		time.Sleep(p.config.WaitForRetry)
 	}
 
 	return nil
