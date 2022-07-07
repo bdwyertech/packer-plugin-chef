@@ -31,6 +31,8 @@ type FlatConfig struct {
 	RemoteCookbookPaths        []string          `mapstructure:"remote_cookbook_paths" cty:"remote_cookbook_paths" hcl:"remote_cookbook_paths"`
 	JsonString                 *string           `mapstructure:"json_string" cty:"json_string" hcl:"json_string"`
 	PreventSudo                *bool             `mapstructure:"prevent_sudo" cty:"prevent_sudo" hcl:"prevent_sudo"`
+	RetryOnExitCode            map[int]bool      `mapstructure:"retry_on_exit_code" cty:"retry_on_exit_code" hcl:"retry_on_exit_code"`
+	WaitForRetry               *string           `mapstructure:"wait_for_retry" cty:"wait_for_retry" hcl:"wait_for_retry"`
 	RunList                    []string          `mapstructure:"run_list" cty:"run_list" hcl:"run_list"`
 	SkipInstall                *bool             `mapstructure:"skip_install" cty:"skip_install" hcl:"skip_install"`
 	StagingDir                 *string           `mapstructure:"staging_directory" cty:"staging_directory" hcl:"staging_directory"`
@@ -71,6 +73,8 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"remote_cookbook_paths":          &hcldec.AttrSpec{Name: "remote_cookbook_paths", Type: cty.List(cty.String), Required: false},
 		"json_string":                    &hcldec.AttrSpec{Name: "json_string", Type: cty.String, Required: false},
 		"prevent_sudo":                   &hcldec.AttrSpec{Name: "prevent_sudo", Type: cty.Bool, Required: false},
+		"retry_on_exit_code":             &hcldec.AttrSpec{Name: "retry_on_exit_code", Type: cty.Map(cty.String), Required: false},
+		"wait_for_retry":                 &hcldec.AttrSpec{Name: "wait_for_retry", Type: cty.String, Required: false},
 		"run_list":                       &hcldec.AttrSpec{Name: "run_list", Type: cty.List(cty.String), Required: false},
 		"skip_install":                   &hcldec.AttrSpec{Name: "skip_install", Type: cty.Bool, Required: false},
 		"staging_directory":              &hcldec.AttrSpec{Name: "staging_directory", Type: cty.String, Required: false},
