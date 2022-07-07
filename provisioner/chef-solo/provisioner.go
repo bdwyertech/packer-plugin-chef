@@ -265,19 +265,19 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	ui.Say("Provisioning with chef-solo")
 
 	if !p.config.SkipInstall {
-		if err := p.installChef(ui, comm, p.config.Version); err != nil {
+		if err := p.installChef(ctx, ui, comm, p.config.Version); err != nil {
 			return fmt.Errorf("Error installing Chef: %s", err)
 		}
 	}
 
-	if err := p.createDir(ui, comm, p.config.StagingDir); err != nil {
+	if err := p.createDir(ctx, ui, comm, p.config.StagingDir); err != nil {
 		return fmt.Errorf("Error creating staging directory: %s", err)
 	}
 
 	cookbookPaths := make([]string, 0, len(p.config.CookbookPaths))
 	for i, path := range p.config.CookbookPaths {
 		targetPath := fmt.Sprintf("%s/cookbooks-%d", p.config.StagingDir, i)
-		if err := p.uploadDirectory(ui, comm, targetPath, path); err != nil {
+		if err := p.uploadDirectory(ctx, ui, comm, targetPath, path); err != nil {
 			return fmt.Errorf("Error uploading cookbooks: %s", err)
 		}
 
@@ -287,7 +287,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	rolesPath := ""
 	if p.config.RolesPath != "" {
 		rolesPath = fmt.Sprintf("%s/roles", p.config.StagingDir)
-		if err := p.uploadDirectory(ui, comm, rolesPath, p.config.RolesPath); err != nil {
+		if err := p.uploadDirectory(ctx, ui, comm, rolesPath, p.config.RolesPath); err != nil {
 			return fmt.Errorf("Error uploading roles: %s", err)
 		}
 	}
@@ -295,7 +295,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	dataBagsPath := ""
 	if p.config.DataBagsPath != "" {
 		dataBagsPath = fmt.Sprintf("%s/data_bags", p.config.StagingDir)
-		if err := p.uploadDirectory(ui, comm, dataBagsPath, p.config.DataBagsPath); err != nil {
+		if err := p.uploadDirectory(ctx, ui, comm, dataBagsPath, p.config.DataBagsPath); err != nil {
 			return fmt.Errorf("Error uploading data bags: %s", err)
 		}
 	}
@@ -311,7 +311,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	environmentsPath := ""
 	if p.config.EnvironmentsPath != "" {
 		environmentsPath = fmt.Sprintf("%s/environments", p.config.StagingDir)
-		if err := p.uploadDirectory(ui, comm, environmentsPath, p.config.EnvironmentsPath); err != nil {
+		if err := p.uploadDirectory(ctx, ui, comm, environmentsPath, p.config.EnvironmentsPath); err != nil {
 			return fmt.Errorf("Error uploading environments: %s", err)
 		}
 	}
@@ -326,15 +326,15 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 		return fmt.Errorf("Error creating JSON attributes: %s", err)
 	}
 
-	if err := p.executeChef(ui, comm, configPath, jsonPath); err != nil {
+	if err := p.executeChef(ctx, ui, comm, configPath, jsonPath); err != nil {
 		return fmt.Errorf("Error executing Chef: %s", err)
 	}
 
 	return nil
 }
 
-func (p *Provisioner) uploadDirectory(ui packersdk.Ui, comm packersdk.Communicator, dst string, src string) error {
-	if err := p.createDir(ui, comm, dst); err != nil {
+func (p *Provisioner) uploadDirectory(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, dst string, src string) error {
+	if err := p.createDir(ctx, ui, comm, dst); err != nil {
 		return err
 	}
 
@@ -440,9 +440,8 @@ func (p *Provisioner) createJson(ui packersdk.Ui, comm packersdk.Communicator) (
 	return remotePath, nil
 }
 
-func (p *Provisioner) createDir(ui packersdk.Ui, comm packersdk.Communicator, dir string) error {
+func (p *Provisioner) createDir(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, dir string) error {
 	ui.Message(fmt.Sprintf("Creating directory: %s", dir))
-	ctx := context.TODO()
 
 	cmd := &packersdk.RemoteCmd{Command: p.guestCommands.CreateDir(dir)}
 	if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
@@ -464,7 +463,7 @@ func (p *Provisioner) createDir(ui packersdk.Ui, comm packersdk.Communicator, di
 	return nil
 }
 
-func (p *Provisioner) executeChef(ui packersdk.Ui, comm packersdk.Communicator, config string, json string) error {
+func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, config string, json string) error {
 	p.config.ctx.Data = &ExecuteTemplate{
 		ConfigPath: config,
 		JsonPath:   json,
@@ -481,7 +480,7 @@ func (p *Provisioner) executeChef(ui packersdk.Ui, comm packersdk.Communicator, 
 		}
 
 		ui.Message(fmt.Sprintf("Executing Chef: %s", command))
-		if err := cmd.RunWithUi(context.Background(), comm, ui); err != nil {
+		if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
 			return err
 		}
 
@@ -512,9 +511,8 @@ func (p *Provisioner) executeChef(ui packersdk.Ui, comm packersdk.Communicator, 
 	return nil
 }
 
-func (p *Provisioner) installChef(ui packersdk.Ui, comm packersdk.Communicator, version string) error {
+func (p *Provisioner) installChef(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, version string) error {
 	ui.Message("Installing Chef...")
-	ctx := context.TODO()
 
 	p.config.ctx.Data = &InstallChefTemplate{
 		Sudo:    !p.config.PreventSudo,
