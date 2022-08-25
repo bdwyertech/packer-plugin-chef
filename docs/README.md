@@ -27,7 +27,7 @@ packer {
   required_plugins {
     chef = {
       version = ">= 1.0.0"
-      source  = "github.com/hashicorp/chef"
+      source  = "github.com/bdwyertech/chef"
     }
   }
 }
@@ -35,7 +35,7 @@ packer {
 
 #### Manual installation
 
-You can find pre-built binary releases of the plugin [here](https://github.com/hashicorp/packer-plugin-chef/releases).
+You can find pre-built binary releases of the plugin [here](https://github.com/bdwyertech/packer-plugin-chef/releases).
 Once you have downloaded the latest archive corresponding to your target OS,
 uncompress it to retrieve the plugin binary file corresponding to your platform.
 To install the plugin, please follow the Packer documentation on
