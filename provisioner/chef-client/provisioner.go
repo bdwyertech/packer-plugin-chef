@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/packer-plugin-sdk/common"
@@ -57,34 +58,36 @@ type Config struct {
 	// For JSON templates we keep the map[string]interface{}
 	Json map[string]interface{} `mapstructure:"json" mapstructure-to-hcl2:",skip"`
 
-	ChefEnvironment            string   `mapstructure:"chef_environment"`
-	ChefLicense                string   `mapstructure:"chef_license"`
-	ClientKey                  string   `mapstructure:"client_key"`
-	ConfigTemplate             string   `mapstructure:"config_template"`
-	ElevatedUser               string   `mapstructure:"elevated_user"`
-	ElevatedPassword           string   `mapstructure:"elevated_password"`
-	EncryptedDataBagSecretPath string   `mapstructure:"encrypted_data_bag_secret_path"`
-	ExecuteCommand             string   `mapstructure:"execute_command"`
-	GuestOSType                string   `mapstructure:"guest_os_type"`
-	InstallCommand             string   `mapstructure:"install_command"`
-	KnifeCommand               string   `mapstructure:"knife_command"`
-	NodeName                   string   `mapstructure:"node_name"`
-	PolicyGroup                string   `mapstructure:"policy_group"`
-	PolicyName                 string   `mapstructure:"policy_name"`
-	PreventSudo                bool     `mapstructure:"prevent_sudo"`
-	RubygemsURL                string   `mapstructure:"rubygems_url"`
-	RunList                    []string `mapstructure:"run_list"`
-	ServerUrl                  string   `mapstructure:"server_url"`
-	SkipCleanClient            bool     `mapstructure:"skip_clean_client"`
-	SkipCleanNode              bool     `mapstructure:"skip_clean_node"`
-	SkipCleanStagingDirectory  bool     `mapstructure:"skip_clean_staging_directory"`
-	SkipInstall                bool     `mapstructure:"skip_install"`
-	SslVerifyMode              string   `mapstructure:"ssl_verify_mode"`
-	TrustedCertsDir            string   `mapstructure:"trusted_certs_dir"`
-	StagingDir                 string   `mapstructure:"staging_directory"`
-	ValidationClientName       string   `mapstructure:"validation_client_name"`
-	ValidationKeyPath          string   `mapstructure:"validation_key_path"`
-	Version                    string   `mapstructure:"version"`
+	ChefEnvironment            string        `mapstructure:"chef_environment"`
+	ChefLicense                string        `mapstructure:"chef_license"`
+	ClientKey                  string        `mapstructure:"client_key"`
+	ConfigTemplate             string        `mapstructure:"config_template"`
+	ElevatedUser               string        `mapstructure:"elevated_user"`
+	ElevatedPassword           string        `mapstructure:"elevated_password"`
+	EncryptedDataBagSecretPath string        `mapstructure:"encrypted_data_bag_secret_path"`
+	ExecuteCommand             string        `mapstructure:"execute_command"`
+	GuestOSType                string        `mapstructure:"guest_os_type"`
+	InstallCommand             string        `mapstructure:"install_command"`
+	KnifeCommand               string        `mapstructure:"knife_command"`
+	NodeName                   string        `mapstructure:"node_name"`
+	PolicyGroup                string        `mapstructure:"policy_group"`
+	PolicyName                 string        `mapstructure:"policy_name"`
+	PreventSudo                bool          `mapstructure:"prevent_sudo"`
+	RetryOnExitCode            map[int]bool  `mapstructure:"retry_on_exit_code"`
+	RubygemsURL                string        `mapstructure:"rubygems_url"`
+	RunList                    []string      `mapstructure:"run_list"`
+	ServerUrl                  string        `mapstructure:"server_url"`
+	SkipCleanClient            bool          `mapstructure:"skip_clean_client"`
+	SkipCleanNode              bool          `mapstructure:"skip_clean_node"`
+	SkipCleanStagingDirectory  bool          `mapstructure:"skip_clean_staging_directory"`
+	SkipInstall                bool          `mapstructure:"skip_install"`
+	SslVerifyMode              string        `mapstructure:"ssl_verify_mode"`
+	TrustedCertsDir            string        `mapstructure:"trusted_certs_dir"`
+	StagingDir                 string        `mapstructure:"staging_directory"`
+	ValidationClientName       string        `mapstructure:"validation_client_name"`
+	ValidationKeyPath          string        `mapstructure:"validation_key_path"`
+	Version                    string        `mapstructure:"version"`
+	WaitForRetry               time.Duration `mapstructure:"wait_for_retry"`
 
 	ctx interpolate.Context
 }
@@ -169,6 +172,10 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	p.guestCommands, err = guestexec.NewGuestCommands(p.config.GuestOSType, !p.config.PreventSudo)
 	if err != nil {
 		return fmt.Errorf("Invalid guest_os_type: \"%s\"", p.config.GuestOSType)
+	}
+
+	if p.config.WaitForRetry == 0 {
+		p.config.WaitForRetry = 60 * time.Second
 	}
 
 	if p.config.ExecuteCommand == "" {
@@ -266,7 +273,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	serverUrl := p.config.ServerUrl
 
 	if !p.config.SkipInstall {
-		if err := p.installChef(ui, comm, p.config.Version); err != nil {
+		if err := p.installChef(ctx, ui, comm, p.config.Version); err != nil {
 			return fmt.Errorf("Error installing Chef: %s", err)
 		}
 	}
@@ -326,7 +333,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 		return fmt.Errorf("Error creating JSON attributes: %s", err)
 	}
 
-	err = p.executeChef(ui, comm, configPath, jsonPath)
+	err = p.executeChef(ctx, ui, comm, configPath, jsonPath)
 
 	if !(p.config.SkipCleanNode && p.config.SkipCleanClient) {
 
@@ -584,13 +591,12 @@ func (p *Provisioner) removeDir(ui packersdk.Ui, comm packersdk.Communicator, di
 	return nil
 }
 
-func (p *Provisioner) executeChef(ui packersdk.Ui, comm packersdk.Communicator, config string, json string) error {
+func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, config string, json string) error {
 	p.config.ctx.Data = &ExecuteTemplate{
 		ConfigPath: config,
 		JsonPath:   json,
 		Sudo:       !p.config.PreventSudo,
 	}
-	ctx := context.TODO()
 
 	command, err := interpolate.Render(p.config.ExecuteCommand, &p.config.ctx)
 	if err != nil {
@@ -604,26 +610,45 @@ func (p *Provisioner) executeChef(ui packersdk.Ui, comm packersdk.Communicator, 
 		}
 	}
 
-	ui.Message(fmt.Sprintf("Executing Chef: %s", command))
+	for {
+		cmd := &packersdk.RemoteCmd{
+			Command: command,
+		}
 
-	cmd := &packersdk.RemoteCmd{
-		Command: command,
-	}
+		ui.Message(fmt.Sprintf("Executing Chef: %s", command))
+		if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
+			return err
+		}
 
-	if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
-		return err
-	}
+		// Allow RFC062 Exit Codes:
+		// https://github.com/chef/chef-rfc/blob/master/rfc062-exit-status.md
+		switch exitStatus := cmd.ExitStatus(); exitStatus {
+		case 0:
+			return nil
+		case 35:
+			ui.Message("Reboot has been scheduled in the run state")
+		case 37:
+			ui.Message("Reboot needs to be completed")
+		case 213:
+			ui.Message("Chef has exited during a client upgrade")
+			continue
+		case packersdk.CmdDisconnect:
+			return fmt.Errorf("received disconnect from remote: exit status: %d", packersdk.CmdDisconnect)
+		default:
+			if !p.config.RetryOnExitCode[exitStatus] {
+				return fmt.Errorf("non-zero exit status: %d", exitStatus)
+			}
+		}
 
-	if cmd.ExitStatus() != 0 {
-		return fmt.Errorf("Non-zero exit status: %d", cmd.ExitStatus())
+		ui.Message(fmt.Sprintf("Waiting %s before retrying Chef-Client run...", p.config.WaitForRetry))
+		time.Sleep(p.config.WaitForRetry)
 	}
 
 	return nil
 }
 
-func (p *Provisioner) installChef(ui packersdk.Ui, comm packersdk.Communicator, version string) error {
+func (p *Provisioner) installChef(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, version string) error {
 	ui.Message("Installing Chef...")
-	ctx := context.TODO()
 
 	p.config.ctx.Data = &InstallChefTemplate{
 		Sudo:    !p.config.PreventSudo,

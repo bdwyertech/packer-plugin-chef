@@ -34,6 +34,7 @@ type FlatConfig struct {
 	PolicyGroup                *string           `mapstructure:"policy_group" cty:"policy_group" hcl:"policy_group"`
 	PolicyName                 *string           `mapstructure:"policy_name" cty:"policy_name" hcl:"policy_name"`
 	PreventSudo                *bool             `mapstructure:"prevent_sudo" cty:"prevent_sudo" hcl:"prevent_sudo"`
+	RetryOnExitCode            map[int]bool      `mapstructure:"retry_on_exit_code" cty:"retry_on_exit_code" hcl:"retry_on_exit_code"`
 	RubygemsURL                *string           `mapstructure:"rubygems_url" cty:"rubygems_url" hcl:"rubygems_url"`
 	RunList                    []string          `mapstructure:"run_list" cty:"run_list" hcl:"run_list"`
 	ServerUrl                  *string           `mapstructure:"server_url" cty:"server_url" hcl:"server_url"`
@@ -47,6 +48,7 @@ type FlatConfig struct {
 	ValidationClientName       *string           `mapstructure:"validation_client_name" cty:"validation_client_name" hcl:"validation_client_name"`
 	ValidationKeyPath          *string           `mapstructure:"validation_key_path" cty:"validation_key_path" hcl:"validation_key_path"`
 	Version                    *string           `mapstructure:"version" cty:"version" hcl:"version"`
+	WaitForRetry               *string           `mapstructure:"wait_for_retry" cty:"wait_for_retry" hcl:"wait_for_retry"`
 }
 
 // FlatMapstructure returns a new FlatConfig.
@@ -85,6 +87,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"policy_group":                   &hcldec.AttrSpec{Name: "policy_group", Type: cty.String, Required: false},
 		"policy_name":                    &hcldec.AttrSpec{Name: "policy_name", Type: cty.String, Required: false},
 		"prevent_sudo":                   &hcldec.AttrSpec{Name: "prevent_sudo", Type: cty.Bool, Required: false},
+		"retry_on_exit_code":             &hcldec.AttrSpec{Name: "retry_on_exit_code", Type: cty.Map(cty.String), Required: false},
 		"rubygems_url":                   &hcldec.AttrSpec{Name: "rubygems_url", Type: cty.String, Required: false},
 		"run_list":                       &hcldec.AttrSpec{Name: "run_list", Type: cty.List(cty.String), Required: false},
 		"server_url":                     &hcldec.AttrSpec{Name: "server_url", Type: cty.String, Required: false},
@@ -98,6 +101,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"validation_client_name":         &hcldec.AttrSpec{Name: "validation_client_name", Type: cty.String, Required: false},
 		"validation_key_path":            &hcldec.AttrSpec{Name: "validation_key_path", Type: cty.String, Required: false},
 		"version":                        &hcldec.AttrSpec{Name: "version", Type: cty.String, Required: false},
+		"wait_for_retry":                 &hcldec.AttrSpec{Name: "wait_for_retry", Type: cty.String, Required: false},
 	}
 	return s
 }
