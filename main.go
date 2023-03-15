@@ -16,8 +16,7 @@ func main() {
 	pps.RegisterProvisioner("client", new(chefclient.Provisioner))
 	pps.RegisterProvisioner("solo", new(chefsolo.Provisioner))
 	pps.SetVersion(version.PluginVersion)
-	err := pps.Run()
-	if err != nil {
+	if err := pps.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
