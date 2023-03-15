@@ -33,6 +33,7 @@ type FlatConfig struct {
 	PreventSudo                *bool             `mapstructure:"prevent_sudo" cty:"prevent_sudo" hcl:"prevent_sudo"`
 	RetryOnExitCode            map[int]bool      `mapstructure:"retry_on_exit_code" cty:"retry_on_exit_code" hcl:"retry_on_exit_code"`
 	WaitForRetry               *string           `mapstructure:"wait_for_retry" cty:"wait_for_retry" hcl:"wait_for_retry"`
+	OmnitruckUrl               *string           `mapstructure:"omnitruck_url" cty:"omnitruck_url" hcl:"omnitruck_url"`
 	RunList                    []string          `mapstructure:"run_list" cty:"run_list" hcl:"run_list"`
 	SkipInstall                *bool             `mapstructure:"skip_install" cty:"skip_install" hcl:"skip_install"`
 	StagingDir                 *string           `mapstructure:"staging_directory" cty:"staging_directory" hcl:"staging_directory"`
@@ -75,6 +76,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"prevent_sudo":                   &hcldec.AttrSpec{Name: "prevent_sudo", Type: cty.Bool, Required: false},
 		"retry_on_exit_code":             &hcldec.AttrSpec{Name: "retry_on_exit_code", Type: cty.Map(cty.String), Required: false},
 		"wait_for_retry":                 &hcldec.AttrSpec{Name: "wait_for_retry", Type: cty.String, Required: false},
+		"omnitruck_url":                  &hcldec.AttrSpec{Name: "omnitruck_url", Type: cty.String, Required: false},
 		"run_list":                       &hcldec.AttrSpec{Name: "run_list", Type: cty.List(cty.String), Required: false},
 		"skip_install":                   &hcldec.AttrSpec{Name: "skip_install", Type: cty.Bool, Required: false},
 		"staging_directory":              &hcldec.AttrSpec{Name: "staging_directory", Type: cty.String, Required: false},
