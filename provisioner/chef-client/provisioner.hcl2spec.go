@@ -31,6 +31,7 @@ type FlatConfig struct {
 	InstallCommand             *string           `mapstructure:"install_command" cty:"install_command" hcl:"install_command"`
 	KnifeCommand               *string           `mapstructure:"knife_command" cty:"knife_command" hcl:"knife_command"`
 	NodeName                   *string           `mapstructure:"node_name" cty:"node_name" hcl:"node_name"`
+	OmnitruckUrl               *string           `mapstructure:"omnitruck_url" cty:"omnitruck_url" hcl:"omnitruck_url"`
 	PolicyGroup                *string           `mapstructure:"policy_group" cty:"policy_group" hcl:"policy_group"`
 	PolicyName                 *string           `mapstructure:"policy_name" cty:"policy_name" hcl:"policy_name"`
 	PreventSudo                *bool             `mapstructure:"prevent_sudo" cty:"prevent_sudo" hcl:"prevent_sudo"`
@@ -84,6 +85,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"install_command":                &hcldec.AttrSpec{Name: "install_command", Type: cty.String, Required: false},
 		"knife_command":                  &hcldec.AttrSpec{Name: "knife_command", Type: cty.String, Required: false},
 		"node_name":                      &hcldec.AttrSpec{Name: "node_name", Type: cty.String, Required: false},
+		"omnitruck_url":                  &hcldec.AttrSpec{Name: "omnitruck_url", Type: cty.String, Required: false},
 		"policy_group":                   &hcldec.AttrSpec{Name: "policy_group", Type: cty.String, Required: false},
 		"policy_name":                    &hcldec.AttrSpec{Name: "policy_name", Type: cty.String, Required: false},
 		"prevent_sudo":                   &hcldec.AttrSpec{Name: "prevent_sudo", Type: cty.Bool, Required: false},

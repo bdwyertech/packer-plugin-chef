@@ -36,13 +36,13 @@ type guestOSTypeConfig struct {
 var guestOSTypeConfigs = map[string]guestOSTypeConfig{
 	guestexec.UnixOSType: {
 		executeCommand: "{{if .Sudo}}sudo {{end}}chef-client --no-color -c {{.ConfigPath}} -j {{.JsonPath}}",
-		installCommand: "curl -L https://omnitruck.chef.io/install.sh | {{if .Sudo}}sudo {{end}}bash -s --{{if .Version}} -v {{.Version}}{{end}}",
+		installCommand: "curl -L {{.OmnitruckUrl}}/install.sh | {{if .Sudo}}sudo {{end}}bash -s --{{if .Version}} -v {{.Version}}{{end}}",
 		knifeCommand:   "{{if .Sudo}}sudo {{end}}knife {{.Args}} {{.Flags}}",
 		stagingDir:     "/tmp/packer-chef-client",
 	},
 	guestexec.WindowsOSType: {
 		executeCommand: "c:/opscode/chef/bin/chef-client.bat --no-color -c {{.ConfigPath}} -j {{.JsonPath}}",
-		installCommand: "powershell.exe -Command \". { iwr -useb https://omnitruck.chef.io/install.ps1 } | iex; Install-Project{{if .Version}} -version {{.Version}}{{end}}\"",
+		installCommand: "powershell.exe -Command \". { iwr -useb {{.OmnitruckUrl}}/install.ps1 } | iex; Install-Project{{if .Version}} -version {{.Version}}{{end}}\"",
 		knifeCommand:   "c:/opscode/chef/bin/knife.bat {{.Args}} {{.Flags}}",
 		stagingDir:     "C:/Windows/Temp/packer-chef-client",
 	},
@@ -70,6 +70,7 @@ type Config struct {
 	InstallCommand             string        `mapstructure:"install_command"`
 	KnifeCommand               string        `mapstructure:"knife_command"`
 	NodeName                   string        `mapstructure:"node_name"`
+	OmnitruckUrl               string        `mapstructure:"omnitruck_url"`
 	PolicyGroup                string        `mapstructure:"policy_group"`
 	PolicyName                 string        `mapstructure:"policy_name"`
 	PreventSudo                bool          `mapstructure:"prevent_sudo"`
@@ -123,8 +124,9 @@ type ExecuteTemplate struct {
 }
 
 type InstallChefTemplate struct {
-	Sudo    bool
-	Version string
+	OmnitruckUrl string
+	Sudo         bool
+	Version      string
 }
 
 type KnifeTemplate struct {
@@ -184,6 +186,10 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	if p.config.InstallCommand == "" {
 		p.config.InstallCommand = p.guestOSTypeConfig.installCommand
+	}
+
+	if p.config.OmnitruckUrl == "" {
+		p.config.OmnitruckUrl = "https://omnitruck.chef.io"
 	}
 
 	if p.config.RunList == nil {
@@ -651,8 +657,9 @@ func (p *Provisioner) installChef(ctx context.Context, ui packersdk.Ui, comm pac
 	ui.Message("Installing Chef...")
 
 	p.config.ctx.Data = &InstallChefTemplate{
-		Sudo:    !p.config.PreventSudo,
-		Version: version,
+		OmnitruckUrl: p.config.OmnitruckUrl,
+		Sudo:         !p.config.PreventSudo,
+		Version:      version,
 	}
 	command, err := interpolate.Render(p.config.InstallCommand, &p.config.ctx)
 	if err != nil {
