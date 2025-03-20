@@ -1,6 +1,6 @@
 module github.com/bdwyertech/packer-plugin-chef
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/go-chef/chef v0.30.1
