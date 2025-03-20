@@ -29,7 +29,6 @@ type FlatConfig struct {
 	ExecuteCommand             *string           `mapstructure:"execute_command" cty:"execute_command" hcl:"execute_command"`
 	GuestOSType                *string           `mapstructure:"guest_os_type" cty:"guest_os_type" hcl:"guest_os_type"`
 	InstallCommand             *string           `mapstructure:"install_command" cty:"install_command" hcl:"install_command"`
-	KnifeCommand               *string           `mapstructure:"knife_command" cty:"knife_command" hcl:"knife_command"`
 	NodeName                   *string           `mapstructure:"node_name" cty:"node_name" hcl:"node_name"`
 	OmnitruckUrl               *string           `mapstructure:"omnitruck_url" cty:"omnitruck_url" hcl:"omnitruck_url"`
 	PolicyGroup                *string           `mapstructure:"policy_group" cty:"policy_group" hcl:"policy_group"`
@@ -44,6 +43,7 @@ type FlatConfig struct {
 	SkipCleanStagingDirectory  *bool             `mapstructure:"skip_clean_staging_directory" cty:"skip_clean_staging_directory" hcl:"skip_clean_staging_directory"`
 	SkipInstall                *bool             `mapstructure:"skip_install" cty:"skip_install" hcl:"skip_install"`
 	SslVerifyMode              *string           `mapstructure:"ssl_verify_mode" cty:"ssl_verify_mode" hcl:"ssl_verify_mode"`
+	SkipSSL                    *bool             `mapstructure:"skip_ssl" cty:"skip_ssl" hcl:"skip_ssl"`
 	TrustedCertsDir            *string           `mapstructure:"trusted_certs_dir" cty:"trusted_certs_dir" hcl:"trusted_certs_dir"`
 	StagingDir                 *string           `mapstructure:"staging_directory" cty:"staging_directory" hcl:"staging_directory"`
 	ValidationClientName       *string           `mapstructure:"validation_client_name" cty:"validation_client_name" hcl:"validation_client_name"`
@@ -83,7 +83,6 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"execute_command":                &hcldec.AttrSpec{Name: "execute_command", Type: cty.String, Required: false},
 		"guest_os_type":                  &hcldec.AttrSpec{Name: "guest_os_type", Type: cty.String, Required: false},
 		"install_command":                &hcldec.AttrSpec{Name: "install_command", Type: cty.String, Required: false},
-		"knife_command":                  &hcldec.AttrSpec{Name: "knife_command", Type: cty.String, Required: false},
 		"node_name":                      &hcldec.AttrSpec{Name: "node_name", Type: cty.String, Required: false},
 		"omnitruck_url":                  &hcldec.AttrSpec{Name: "omnitruck_url", Type: cty.String, Required: false},
 		"policy_group":                   &hcldec.AttrSpec{Name: "policy_group", Type: cty.String, Required: false},
@@ -98,6 +97,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"skip_clean_staging_directory":   &hcldec.AttrSpec{Name: "skip_clean_staging_directory", Type: cty.Bool, Required: false},
 		"skip_install":                   &hcldec.AttrSpec{Name: "skip_install", Type: cty.Bool, Required: false},
 		"ssl_verify_mode":                &hcldec.AttrSpec{Name: "ssl_verify_mode", Type: cty.String, Required: false},
+		"skip_ssl":                       &hcldec.AttrSpec{Name: "skip_ssl", Type: cty.Bool, Required: false},
 		"trusted_certs_dir":              &hcldec.AttrSpec{Name: "trusted_certs_dir", Type: cty.String, Required: false},
 		"staging_directory":              &hcldec.AttrSpec{Name: "staging_directory", Type: cty.String, Required: false},
 		"validation_client_name":         &hcldec.AttrSpec{Name: "validation_client_name", Type: cty.String, Required: false},

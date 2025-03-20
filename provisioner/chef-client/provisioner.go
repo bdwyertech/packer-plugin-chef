@@ -10,12 +10,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/go-chef/chef"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/packer-plugin-sdk/common"
 	"github.com/hashicorp/packer-plugin-sdk/guestexec"
@@ -29,7 +30,6 @@ import (
 type guestOSTypeConfig struct {
 	executeCommand string
 	installCommand string
-	knifeCommand   string
 	stagingDir     string
 }
 
@@ -37,13 +37,11 @@ var guestOSTypeConfigs = map[string]guestOSTypeConfig{
 	guestexec.UnixOSType: {
 		executeCommand: "{{if .Sudo}}sudo {{end}}chef-client --no-color -c {{.ConfigPath}} -j {{.JsonPath}}",
 		installCommand: "curl -L {{.OmnitruckUrl}}/install.sh | {{if .Sudo}}sudo {{end}}bash -s --{{if .Version}} -v {{.Version}}{{end}}",
-		knifeCommand:   "{{if .Sudo}}sudo {{end}}knife {{.Args}} {{.Flags}}",
 		stagingDir:     "/tmp/packer-chef-client",
 	},
 	guestexec.WindowsOSType: {
 		executeCommand: "c:/opscode/chef/bin/chef-client.bat --no-color -c {{.ConfigPath}} -j {{.JsonPath}}",
 		installCommand: "powershell.exe -Command \". { iwr -useb {{.OmnitruckUrl}}/install.ps1 } | iex; Install-Project{{if .Version}} -version {{.Version}}{{end}}\"",
-		knifeCommand:   "c:/opscode/chef/bin/knife.bat {{.Args}} {{.Flags}}",
 		stagingDir:     "C:/Windows/Temp/packer-chef-client",
 	},
 }
@@ -68,7 +66,6 @@ type Config struct {
 	ExecuteCommand             string        `mapstructure:"execute_command"`
 	GuestOSType                string        `mapstructure:"guest_os_type"`
 	InstallCommand             string        `mapstructure:"install_command"`
-	KnifeCommand               string        `mapstructure:"knife_command"`
 	NodeName                   string        `mapstructure:"node_name"`
 	OmnitruckUrl               string        `mapstructure:"omnitruck_url"`
 	PolicyGroup                string        `mapstructure:"policy_group"`
@@ -83,6 +80,7 @@ type Config struct {
 	SkipCleanStagingDirectory  bool          `mapstructure:"skip_clean_staging_directory"`
 	SkipInstall                bool          `mapstructure:"skip_install"`
 	SslVerifyMode              string        `mapstructure:"ssl_verify_mode"`
+	SkipSSL                    bool          `mapstructure:"skip_ssl"`
 	TrustedCertsDir            string        `mapstructure:"trusted_certs_dir"`
 	StagingDir                 string        `mapstructure:"staging_directory"`
 	ValidationClientName       string        `mapstructure:"validation_client_name"`
@@ -129,12 +127,6 @@ type InstallChefTemplate struct {
 	Version      string
 }
 
-type KnifeTemplate struct {
-	Sudo  bool
-	Flags string
-	Args  string
-}
-
 func (p *Provisioner) ConfigSpec() hcldec.ObjectSpec { return p.config.FlatMapstructure().HCL2Spec() }
 
 func (p *Provisioner) Prepare(raws ...interface{}) error {
@@ -146,7 +138,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 			Exclude: []string{
 				"execute_command",
 				"install_command",
-				"knife_command",
 			},
 		},
 	}, raws...)
@@ -198,10 +189,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	if p.config.StagingDir == "" {
 		p.config.StagingDir = p.guestOSTypeConfig.stagingDir
-	}
-
-	if p.config.KnifeCommand == "" {
-		p.config.KnifeCommand = p.guestOSTypeConfig.knifeCommand
 	}
 
 	var errs *packersdk.MultiError
@@ -342,22 +329,21 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	err = p.executeChef(ctx, ui, comm, configPath, jsonPath)
 
 	if !(p.config.SkipCleanNode && p.config.SkipCleanClient) {
+		client, clientErr := p.createClient(
+			ui, comm, nodeName, serverUrl, p.config.ClientKey, p.config.SkipSSL)
 
-		knifeConfigPath, knifeErr := p.createKnifeConfig(
-			ui, comm, nodeName, serverUrl, p.config.ClientKey, p.config.SslVerifyMode, p.config.TrustedCertsDir)
-
-		if knifeErr != nil {
-			return fmt.Errorf("Error creating knife config on node: %s", knifeErr)
+		if clientErr != nil {
+			return fmt.Errorf("Error creating chef api client: %s", clientErr)
 		}
 
 		if !p.config.SkipCleanNode {
-			if err := p.cleanNode(ui, comm, nodeName, knifeConfigPath); err != nil {
+			if err := p.cleanNode(ui, comm, client, nodeName); err != nil {
 				return fmt.Errorf("Error cleaning up chef node: %s", err)
 			}
 		}
 
 		if !p.config.SkipCleanClient {
-			if err := p.cleanClient(ui, comm, nodeName, knifeConfigPath); err != nil {
+			if err := p.cleanClient(ui, comm, client, nodeName); err != nil {
 				return fmt.Errorf("Error cleaning up chef client: %s", err)
 			}
 		}
@@ -416,7 +402,7 @@ func (p *Provisioner) createConfig(
 		}
 		defer f.Close()
 
-		tplBytes, err := ioutil.ReadAll(f)
+		tplBytes, err := io.ReadAll(f)
 		if err != nil {
 			return "", err
 		}
@@ -453,31 +439,17 @@ func (p *Provisioner) createConfig(
 	return remotePath, nil
 }
 
-func (p *Provisioner) createKnifeConfig(ui packersdk.Ui, comm packersdk.Communicator, nodeName string, serverUrl string, clientKey string, sslVerifyMode string, trustedCertsDir string) (string, error) {
-	ui.Message("Creating configuration file 'knife.rb'")
-
-	// Read the template
-	tpl := DefaultKnifeTemplate
-
-	ictx := p.config.ctx
-	ictx.Data = &ConfigTemplate{
-		NodeName:        nodeName,
-		ServerUrl:       serverUrl,
-		ClientKey:       clientKey,
-		SslVerifyMode:   sslVerifyMode,
-		TrustedCertsDir: trustedCertsDir,
-	}
-	configString, err := interpolate.Render(tpl, &ictx)
+func (p *Provisioner) createClient(ui packersdk.Ui, comm packersdk.Communicator, nodeName string, serverUrl string, clientKey string, skipSSL bool) (*chef.Client, error) {
+	key, err := os.ReadFile(clientKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	remotePath := filepath.ToSlash(filepath.Join(p.config.StagingDir, "knife.rb"))
-	if err := comm.Upload(remotePath, bytes.NewReader([]byte(configString)), nil); err != nil {
-		return "", err
-	}
-
-	return remotePath, nil
+	return chef.NewClient(&chef.Config{
+		Name:    nodeName,
+		BaseURL: serverUrl,
+		Key:     string(key),
+		SkipSSL: skipSSL,
+	})
 }
 
 func (p *Provisioner) createJson(ui packersdk.Ui, comm packersdk.Communicator) (string, error) {
@@ -533,56 +505,14 @@ func (p *Provisioner) createDir(ui packersdk.Ui, comm packersdk.Communicator, di
 	return nil
 }
 
-func (p *Provisioner) cleanNode(ui packersdk.Ui, comm packersdk.Communicator, node string, knifeConfigPath string) error {
+func (p *Provisioner) cleanNode(ui packersdk.Ui, comm packersdk.Communicator, client *chef.Client, node string) error {
 	ui.Say("Cleaning up chef node...")
-	args := []string{"node", "delete", node}
-	if err := p.knifeExec(ui, comm, node, knifeConfigPath, args); err != nil {
-		return fmt.Errorf("Failed to cleanup node: %s", err)
-	}
-
-	return nil
+	return client.Nodes.Delete(node)
 }
 
-func (p *Provisioner) cleanClient(ui packersdk.Ui, comm packersdk.Communicator, node string, knifeConfigPath string) error {
+func (p *Provisioner) cleanClient(ui packersdk.Ui, comm packersdk.Communicator, client *chef.Client, node string) error {
 	ui.Say("Cleaning up chef client...")
-	args := []string{"client", "delete", node}
-	if err := p.knifeExec(ui, comm, node, knifeConfigPath, args); err != nil {
-		return fmt.Errorf("Failed to cleanup client: %s", err)
-	}
-
-	return nil
-}
-
-func (p *Provisioner) knifeExec(ui packersdk.Ui, comm packersdk.Communicator, node string, knifeConfigPath string, args []string) error {
-	flags := []string{
-		"-y",
-		"-c", knifeConfigPath,
-	}
-	ctx := context.TODO()
-
-	p.config.ctx.Data = &KnifeTemplate{
-		Sudo:  !p.config.PreventSudo,
-		Flags: strings.Join(flags, " "),
-		Args:  strings.Join(args, " "),
-	}
-
-	command, err := interpolate.Render(p.config.KnifeCommand, &p.config.ctx)
-	if err != nil {
-		return err
-	}
-
-	cmd := &packersdk.RemoteCmd{Command: command}
-	if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
-		return err
-	}
-	if cmd.ExitStatus() != 0 {
-		return fmt.Errorf(
-			"Non-zero exit status. See output above for more info.\n\n"+
-				"Command: %s",
-			command)
-	}
-
-	return nil
+	return client.Clients.Delete(node)
 }
 
 func (p *Provisioner) removeDir(ui packersdk.Ui, comm packersdk.Communicator, dir string) error {
@@ -815,19 +745,5 @@ trusted_certs_dir "{{.TrustedCertsDir}}"
 {{end}}
 {{if ne .RubygemsURL ""}}
 rubygems_url "{{.RubygemsURL}}"
-{{end}}
-`
-
-var DefaultKnifeTemplate = `
-log_level        :info
-log_location     STDOUT
-chef_server_url  "{{.ServerUrl}}"
-client_key       "{{.ClientKey}}"
-node_name "{{.NodeName}}"
-{{if ne .SslVerifyMode ""}}
-ssl_verify_mode :{{.SslVerifyMode}}
-{{end}}
-{{if ne .TrustedCertsDir ""}}
-trusted_certs_dir "{{.TrustedCertsDir}}"
 {{end}}
 `
