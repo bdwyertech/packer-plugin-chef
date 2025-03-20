@@ -2,7 +2,6 @@ package chefclient
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -69,7 +68,7 @@ func TestProvisionerPrepare_configTemplate(t *testing.T) {
 	}
 
 	// Test with a file
-	tf, err := ioutil.TempFile("", "packer")
+	tf, err := os.CreateTemp("", "packer")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -84,7 +83,7 @@ func TestProvisionerPrepare_configTemplate(t *testing.T) {
 	}
 
 	// Test with a directory
-	td, err := ioutil.TempDir("", "packer")
+	td, err := os.MkdirTemp("", "packer")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -220,7 +219,7 @@ func TestProvisionerPrepare_encryptedDataBagSecretPath(t *testing.T) {
 	}
 
 	// Test with a file
-	tf, err := ioutil.TempFile("", "packer")
+	tf, err := os.CreateTemp("", "packer")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -235,7 +234,7 @@ func TestProvisionerPrepare_encryptedDataBagSecretPath(t *testing.T) {
 	}
 
 	// Test with a directory
-	td, err := ioutil.TempDir("", "packer")
+	td, err := os.MkdirTemp("", "packer")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
