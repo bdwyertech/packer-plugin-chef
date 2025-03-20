@@ -10,7 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -385,7 +385,7 @@ func (p *Provisioner) createConfig(ui packersdk.Ui, comm packersdk.Communicator,
 		}
 		defer f.Close()
 
-		tplBytes, err := ioutil.ReadAll(f)
+		tplBytes, err := io.ReadAll(f)
 		if err != nil {
 			return "", err
 		}

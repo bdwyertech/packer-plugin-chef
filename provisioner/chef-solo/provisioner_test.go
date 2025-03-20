@@ -1,7 +1,6 @@
 package chefsolo
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -102,7 +101,7 @@ func TestProvisionerPrepare_configTemplate(t *testing.T) {
 	}
 
 	// Test with a file
-	tf, err := ioutil.TempFile("", "packer")
+	tf, err := os.CreateTemp("", "packer")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -117,7 +116,7 @@ func TestProvisionerPrepare_configTemplate(t *testing.T) {
 	}
 
 	// Test with a directory
-	td, err := ioutil.TempDir("", "packer")
+	td, err := os.MkdirTemp("", "packer")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -135,22 +134,22 @@ func TestProvisionerPrepare_configTemplate(t *testing.T) {
 func TestProvisionerPrepare_cookbookPaths(t *testing.T) {
 	var p Provisioner
 
-	path1, err := ioutil.TempDir("", "cookbooks_one")
+	path1, err := os.MkdirTemp("", "cookbooks_one")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	path2, err := ioutil.TempDir("", "cookbooks_two")
+	path2, err := os.MkdirTemp("", "cookbooks_two")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	rolesPath, err := ioutil.TempDir("", "roles")
+	rolesPath, err := os.MkdirTemp("", "roles")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	dataBagsPath, err := ioutil.TempDir("", "data_bags")
+	dataBagsPath, err := os.MkdirTemp("", "data_bags")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -190,7 +189,7 @@ func TestProvisionerPrepare_cookbookPaths(t *testing.T) {
 func TestProvisionerPrepare_dataBagsPath(t *testing.T) {
 	var p Provisioner
 
-	dataBagsPath, err := ioutil.TempDir("", "data_bags")
+	dataBagsPath, err := os.MkdirTemp("", "data_bags")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -222,7 +221,7 @@ func TestProvisionerPrepare_encryptedDataBagSecretPath(t *testing.T) {
 	}
 
 	// Test with a file
-	tf, err := ioutil.TempFile("", "packer")
+	tf, err := os.CreateTemp("", "packer")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -237,7 +236,7 @@ func TestProvisionerPrepare_encryptedDataBagSecretPath(t *testing.T) {
 	}
 
 	// Test with a directory
-	td, err := ioutil.TempDir("", "packer")
+	td, err := os.MkdirTemp("", "packer")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -255,7 +254,7 @@ func TestProvisionerPrepare_encryptedDataBagSecretPath(t *testing.T) {
 func TestProvisionerPrepare_environmentsPath(t *testing.T) {
 	var p Provisioner
 
-	environmentsPath, err := ioutil.TempDir("", "environments")
+	environmentsPath, err := os.MkdirTemp("", "environments")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -277,7 +276,7 @@ func TestProvisionerPrepare_environmentsPath(t *testing.T) {
 func TestProvisionerPrepare_rolesPath(t *testing.T) {
 	var p Provisioner
 
-	rolesPath, err := ioutil.TempDir("", "roles")
+	rolesPath, err := os.MkdirTemp("", "roles")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
