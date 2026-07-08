@@ -56,37 +56,37 @@ type Config struct {
 	// For JSON templates we keep the map[string]interface{}
 	Json map[string]interface{} `mapstructure:"json" mapstructure-to-hcl2:",skip"`
 
-	ChefEnvironment            string        `mapstructure:"chef_environment"`
-	ChefLicense                string        `mapstructure:"chef_license"`
-	ClientKey                  string        `mapstructure:"client_key"`
-	ConfigTemplate             string        `mapstructure:"config_template"`
-	ElevatedUser               string        `mapstructure:"elevated_user"`
-	ElevatedPassword           string        `mapstructure:"elevated_password"`
-	EncryptedDataBagSecretPath string        `mapstructure:"encrypted_data_bag_secret_path"`
-	ExecuteCommand             string        `mapstructure:"execute_command"`
-	GuestOSType                string        `mapstructure:"guest_os_type"`
-	InstallCommand             string        `mapstructure:"install_command"`
-	NodeName                   string        `mapstructure:"node_name"`
-	OmnitruckUrl               string        `mapstructure:"omnitruck_url"`
-	PolicyGroup                string        `mapstructure:"policy_group"`
-	PolicyName                 string        `mapstructure:"policy_name"`
-	PreventSudo                bool          `mapstructure:"prevent_sudo"`
-	RetryOnExitCode            map[int]bool  `mapstructure:"retry_on_exit_code"`
-	RubygemsURL                string        `mapstructure:"rubygems_url"`
-	RunList                    []string      `mapstructure:"run_list"`
-	ServerUrl                  string        `mapstructure:"server_url"`
-	SkipCleanClient            bool          `mapstructure:"skip_clean_client"`
-	SkipCleanNode              bool          `mapstructure:"skip_clean_node"`
-	SkipCleanStagingDirectory  bool          `mapstructure:"skip_clean_staging_directory"`
-	SkipInstall                bool          `mapstructure:"skip_install"`
-	SslVerifyMode              string        `mapstructure:"ssl_verify_mode"`
-	SkipSSL                    bool          `mapstructure:"skip_ssl"`
-	TrustedCertsDir            string        `mapstructure:"trusted_certs_dir"`
-	StagingDir                 string        `mapstructure:"staging_directory"`
-	ValidationClientName       string        `mapstructure:"validation_client_name"`
-	ValidationKeyPath          string        `mapstructure:"validation_key_path"`
-	Version                    string        `mapstructure:"version"`
-	WaitForRetry               time.Duration `mapstructure:"wait_for_retry"`
+	ChefEnvironment            string          `mapstructure:"chef_environment"`
+	ChefLicense                string          `mapstructure:"chef_license"`
+	ClientKey                  string          `mapstructure:"client_key"`
+	ConfigTemplate             string          `mapstructure:"config_template"`
+	ElevatedUser               string          `mapstructure:"elevated_user"`
+	ElevatedPassword           string          `mapstructure:"elevated_password"`
+	EncryptedDataBagSecretPath string          `mapstructure:"encrypted_data_bag_secret_path"`
+	ExecuteCommand             string          `mapstructure:"execute_command"`
+	GuestOSType                string          `mapstructure:"guest_os_type"`
+	InstallCommand             string          `mapstructure:"install_command"`
+	NodeName                   string          `mapstructure:"node_name"`
+	OmnitruckUrl               string          `mapstructure:"omnitruck_url"`
+	PolicyGroup                string          `mapstructure:"policy_group"`
+	PolicyName                 string          `mapstructure:"policy_name"`
+	PreventSudo                bool            `mapstructure:"prevent_sudo"`
+	RetryOnExitCode            map[string]bool `mapstructure:"retry_on_exit_code"`
+	RubygemsURL                string          `mapstructure:"rubygems_url"`
+	RunList                    []string        `mapstructure:"run_list"`
+	ServerUrl                  string          `mapstructure:"server_url"`
+	SkipCleanClient            bool            `mapstructure:"skip_clean_client"`
+	SkipCleanNode              bool            `mapstructure:"skip_clean_node"`
+	SkipCleanStagingDirectory  bool            `mapstructure:"skip_clean_staging_directory"`
+	SkipInstall                bool            `mapstructure:"skip_install"`
+	SslVerifyMode              string          `mapstructure:"ssl_verify_mode"`
+	SkipSSL                    bool            `mapstructure:"skip_ssl"`
+	TrustedCertsDir            string          `mapstructure:"trusted_certs_dir"`
+	StagingDir                 string          `mapstructure:"staging_directory"`
+	ValidationClientName       string          `mapstructure:"validation_client_name"`
+	ValidationKeyPath          string          `mapstructure:"validation_key_path"`
+	Version                    string          `mapstructure:"version"`
+	WaitForRetry               time.Duration   `mapstructure:"wait_for_retry"`
 
 	ctx interpolate.Context
 }
@@ -571,7 +571,7 @@ func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm pac
 		case packersdk.CmdDisconnect:
 			return fmt.Errorf("received disconnect from remote: exit status: %d", packersdk.CmdDisconnect)
 		default:
-			if !p.config.RetryOnExitCode[exitStatus] {
+			if !p.config.RetryOnExitCode[fmt.Sprintf("%d", exitStatus)] {
 				return fmt.Errorf("non-zero exit status: %d", exitStatus)
 			}
 		}

@@ -34,7 +34,7 @@ type FlatConfig struct {
 	PolicyGroup                *string           `mapstructure:"policy_group" cty:"policy_group" hcl:"policy_group"`
 	PolicyName                 *string           `mapstructure:"policy_name" cty:"policy_name" hcl:"policy_name"`
 	PreventSudo                *bool             `mapstructure:"prevent_sudo" cty:"prevent_sudo" hcl:"prevent_sudo"`
-	RetryOnExitCode            map[int]bool      `mapstructure:"retry_on_exit_code" cty:"retry_on_exit_code" hcl:"retry_on_exit_code"`
+	RetryOnExitCode            map[string]bool   `mapstructure:"retry_on_exit_code" cty:"retry_on_exit_code" hcl:"retry_on_exit_code"`
 	RubygemsURL                *string           `mapstructure:"rubygems_url" cty:"rubygems_url" hcl:"rubygems_url"`
 	RunList                    []string          `mapstructure:"run_list" cty:"run_list" hcl:"run_list"`
 	ServerUrl                  *string           `mapstructure:"server_url" cty:"server_url" hcl:"server_url"`

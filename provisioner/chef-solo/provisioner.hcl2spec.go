@@ -31,7 +31,7 @@ type FlatConfig struct {
 	RemoteCookbookPaths        []string          `mapstructure:"remote_cookbook_paths" cty:"remote_cookbook_paths" hcl:"remote_cookbook_paths"`
 	JsonString                 *string           `mapstructure:"json_string" cty:"json_string" hcl:"json_string"`
 	PreventSudo                *bool             `mapstructure:"prevent_sudo" cty:"prevent_sudo" hcl:"prevent_sudo"`
-	RetryOnExitCode            map[int]bool      `mapstructure:"retry_on_exit_code" cty:"retry_on_exit_code" hcl:"retry_on_exit_code"`
+	RetryOnExitCode            map[string]bool   `mapstructure:"retry_on_exit_code" cty:"retry_on_exit_code" hcl:"retry_on_exit_code"`
 	WaitForRetry               *string           `mapstructure:"wait_for_retry" cty:"wait_for_retry" hcl:"wait_for_retry"`
 	OmnitruckUrl               *string           `mapstructure:"omnitruck_url" cty:"omnitruck_url" hcl:"omnitruck_url"`
 	RunList                    []string          `mapstructure:"run_list" cty:"run_list" hcl:"run_list"`

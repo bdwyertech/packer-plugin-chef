@@ -65,14 +65,14 @@ type Config struct {
 	Json        map[string]interface{} `mapstructure:"json" mapstructure-to-hcl2:",skip"`
 	PreventSudo bool                   `mapstructure:"prevent_sudo"`
 
-	RetryOnExitCode map[int]bool  `mapstructure:"retry_on_exit_code"`
-	WaitForRetry    time.Duration `mapstructure:"wait_for_retry"`
-	OmnitruckUrl    string        `mapstructure:"omnitruck_url"`
-	RunList         []string      `mapstructure:"run_list"`
-	SkipInstall     bool          `mapstructure:"skip_install"`
-	StagingDir      string        `mapstructure:"staging_directory"`
-	GuestOSType     string        `mapstructure:"guest_os_type"`
-	Version         string        `mapstructure:"version"`
+	RetryOnExitCode map[string]bool `mapstructure:"retry_on_exit_code"`
+	WaitForRetry    time.Duration   `mapstructure:"wait_for_retry"`
+	OmnitruckUrl    string          `mapstructure:"omnitruck_url"`
+	RunList         []string        `mapstructure:"run_list"`
+	SkipInstall     bool            `mapstructure:"skip_install"`
+	StagingDir      string          `mapstructure:"staging_directory"`
+	GuestOSType     string          `mapstructure:"guest_os_type"`
+	Version         string          `mapstructure:"version"`
 
 	ctx interpolate.Context
 }
@@ -505,7 +505,7 @@ func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm pac
 		case packersdk.CmdDisconnect:
 			return fmt.Errorf("received disconnect from remote: exit status: %d", packersdk.CmdDisconnect)
 		default:
-			if !p.config.RetryOnExitCode[exitStatus] {
+			if !p.config.RetryOnExitCode[fmt.Sprintf("%d", exitStatus)] {
 				return fmt.Errorf("non-zero exit status: %d", exitStatus)
 			}
 		}
