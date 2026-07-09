@@ -34,7 +34,7 @@ type FlatConfig struct {
 	PolicyGroup                *string           `mapstructure:"policy_group" cty:"policy_group" hcl:"policy_group"`
 	PolicyName                 *string           `mapstructure:"policy_name" cty:"policy_name" hcl:"policy_name"`
 	PreventSudo                *bool             `mapstructure:"prevent_sudo" cty:"prevent_sudo" hcl:"prevent_sudo"`
-	RetryOnExitCode            map[string]bool   `mapstructure:"retry_on_exit_code" cty:"retry_on_exit_code" hcl:"retry_on_exit_code"`
+	RetryOnExitCode            []int             `mapstructure:"retry_on_exit_code" cty:"retry_on_exit_code" hcl:"retry_on_exit_code"`
 	RubygemsURL                *string           `mapstructure:"rubygems_url" cty:"rubygems_url" hcl:"rubygems_url"`
 	RunList                    []string          `mapstructure:"run_list" cty:"run_list" hcl:"run_list"`
 	ServerUrl                  *string           `mapstructure:"server_url" cty:"server_url" hcl:"server_url"`
@@ -88,7 +88,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"policy_group":                   &hcldec.AttrSpec{Name: "policy_group", Type: cty.String, Required: false},
 		"policy_name":                    &hcldec.AttrSpec{Name: "policy_name", Type: cty.String, Required: false},
 		"prevent_sudo":                   &hcldec.AttrSpec{Name: "prevent_sudo", Type: cty.Bool, Required: false},
-		"retry_on_exit_code":             &hcldec.AttrSpec{Name: "retry_on_exit_code", Type: cty.Map(cty.String), Required: false},
+		"retry_on_exit_code":             &hcldec.AttrSpec{Name: "retry_on_exit_code", Type: cty.List(cty.Number), Required: false},
 		"rubygems_url":                   &hcldec.AttrSpec{Name: "rubygems_url", Type: cty.String, Required: false},
 		"run_list":                       &hcldec.AttrSpec{Name: "run_list", Type: cty.List(cty.String), Required: false},
 		"server_url":                     &hcldec.AttrSpec{Name: "server_url", Type: cty.String, Required: false},
