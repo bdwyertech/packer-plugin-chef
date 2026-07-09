@@ -62,9 +62,9 @@ type Config struct {
 	// To be used with https://www.packer.io/docs/templates/hcl_templates/functions/encoding/jsonencode
 	// ref: https://github.com/hashicorp/hcl/issues/291#issuecomment-496347585
 	JsonString string `mapstructure:"json_string"`
-	// For JSON templates we keep the map[string]interface{}
-	Json        map[string]interface{} `mapstructure:"json" mapstructure-to-hcl2:",skip"`
-	PreventSudo bool                   `mapstructure:"prevent_sudo"`
+	// For JSON templates we keep the map[string]any
+	Json        map[string]any `mapstructure:"json" mapstructure-to-hcl2:",skip"`
+	PreventSudo bool           `mapstructure:"prevent_sudo"`
 
 	RetryOnExitCode []int         `mapstructure:"retry_on_exit_code"`
 	WaitForRetry    time.Duration `mapstructure:"wait_for_retry"`
@@ -116,7 +116,7 @@ type InstallChefTemplate struct {
 
 func (p *Provisioner) ConfigSpec() hcldec.ObjectSpec { return p.config.FlatMapstructure().HCL2Spec() }
 
-func (p *Provisioner) Prepare(raws ...interface{}) error {
+func (p *Provisioner) Prepare(raws ...any) error {
 	err := config.Decode(&p.config, &config.DecodeOpts{
 		PluginType:         "chef-solo",
 		Interpolate:        true,
@@ -268,7 +268,7 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	return nil
 }
 
-func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, _ map[string]interface{}) error {
+func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, _ map[string]any) error {
 	ui.Say("Provisioning with chef-solo")
 
 	if !p.config.SkipInstall {
@@ -354,7 +354,7 @@ func (p *Provisioner) uploadDirectory(ctx context.Context, ui packersdk.Ui, comm
 	return comm.UploadDir(dst, src, nil)
 }
 
-func (p *Provisioner) uploadFile(ui packersdk.Ui, comm packersdk.Communicator, dst string, src string) error {
+func (p *Provisioner) uploadFile(_ packersdk.Ui, comm packersdk.Communicator, dst string, src string) error {
 	f, err := os.Open(src)
 	if err != nil {
 		return err
@@ -365,7 +365,7 @@ func (p *Provisioner) uploadFile(ui packersdk.Ui, comm packersdk.Communicator, d
 }
 
 func (p *Provisioner) createConfig(ui packersdk.Ui, comm packersdk.Communicator, localCookbooks []string, rolesPath string, dataBagsPath string, encryptedDataBagSecretPath string, environmentsPath string, chefEnvironment string, chefLicense string) (string, error) {
-	ui.Message("Creating configuration file 'solo.rb'")
+	ui.Say("Creating configuration file 'solo.rb'")
 
 	cookbook_paths := make([]string, len(p.config.RemoteCookbookPaths)+len(localCookbooks))
 	for i, path := range p.config.RemoteCookbookPaths {
@@ -421,9 +421,9 @@ func (p *Provisioner) createConfig(ui packersdk.Ui, comm packersdk.Communicator,
 }
 
 func (p *Provisioner) createJson(ui packersdk.Ui, comm packersdk.Communicator) (string, error) {
-	ui.Message("Creating JSON attribute file")
+	ui.Say("Creating JSON attribute file")
 
-	jsonData := make(map[string]interface{})
+	jsonData := make(map[string]any)
 	// Copy the configured JSON
 	for k, v := range p.config.Json {
 		jsonData[k] = v
@@ -448,7 +448,7 @@ func (p *Provisioner) createJson(ui packersdk.Ui, comm packersdk.Communicator) (
 }
 
 func (p *Provisioner) createDir(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, dir string) error {
-	ui.Message(fmt.Sprintf("Creating directory: %s", dir))
+	ui.Sayf("Creating directory: %s", dir)
 
 	cmd := &packersdk.RemoteCmd{Command: p.guestCommands.CreateDir(dir)}
 	if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
@@ -486,7 +486,7 @@ func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm pac
 			Command: command,
 		}
 
-		ui.Message(fmt.Sprintf("Executing Chef: %s", command))
+		ui.Sayf("Executing Chef: %s", command)
 		if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
 			return err
 		}
@@ -497,11 +497,11 @@ func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm pac
 		case 0:
 			return nil
 		case 35:
-			ui.Message("Reboot has been scheduled in the run state")
+			ui.Say("Reboot has been scheduled in the run state")
 		case 37:
-			ui.Message("Reboot needs to be completed")
+			ui.Say("Reboot needs to be completed")
 		case 213:
-			ui.Message("Chef has exited during a client upgrade")
+			ui.Say("Chef has exited during a client upgrade")
 			continue
 		case packersdk.CmdDisconnect:
 			return fmt.Errorf("received disconnect from remote: exit status: %d", packersdk.CmdDisconnect)
@@ -511,15 +511,13 @@ func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm pac
 			}
 		}
 
-		ui.Message(fmt.Sprintf("Waiting %s before retrying Chef-Client run...", p.config.WaitForRetry))
+		ui.Sayf("Waiting %s before retrying Chef-Client run...", p.config.WaitForRetry)
 		time.Sleep(p.config.WaitForRetry)
 	}
-
-	return nil
 }
 
 func (p *Provisioner) installChef(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, version string) error {
-	ui.Message("Installing Chef...")
+	ui.Say("Installing Chef...")
 
 	p.config.ctx.Data = &InstallChefTemplate{
 		OmnitruckUrl: p.config.OmnitruckUrl,
@@ -544,14 +542,14 @@ func (p *Provisioner) installChef(ctx context.Context, ui packersdk.Ui, comm pac
 	return nil
 }
 
-func (p *Provisioner) deepJsonFix(key string, current interface{}) (interface{}, error) {
+func (p *Provisioner) deepJsonFix(key string, current any) (any, error) {
 	if current == nil {
 		return nil, nil
 	}
 
 	switch c := current.(type) {
-	case []interface{}:
-		val := make([]interface{}, len(c))
+	case []any:
+		val := make([]any, len(c))
 		for i, v := range c {
 			var err error
 			val[i], err = p.deepJsonFix(fmt.Sprintf("%s[%d]", key, i), v)
@@ -563,8 +561,8 @@ func (p *Provisioner) deepJsonFix(key string, current interface{}) (interface{},
 		return val, nil
 	case []uint8:
 		return string(c), nil
-	case map[interface{}]interface{}:
-		val := make(map[string]interface{})
+	case map[any]any:
+		val := make(map[string]any)
 		for k, v := range c {
 			ks, ok := k.(string)
 			if !ok {
@@ -585,7 +583,7 @@ func (p *Provisioner) deepJsonFix(key string, current interface{}) (interface{},
 	}
 }
 
-func (p *Provisioner) processJsonUserVars() (map[string]interface{}, error) {
+func (p *Provisioner) processJsonUserVars() (map[string]any, error) {
 	jsonBytes, err := json.Marshal(p.config.Json)
 	if err != nil {
 		// This really shouldn't happen since we literally just unmarshalled
@@ -618,7 +616,7 @@ func (p *Provisioner) processJsonUserVars() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.Unmarshal([]byte(jsonBytesProcessed), &result); err != nil {
 		return nil, err
 	}

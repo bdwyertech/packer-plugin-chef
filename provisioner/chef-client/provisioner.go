@@ -54,8 +54,8 @@ type Config struct {
 	// To be used with https://www.packer.io/docs/templates/hcl_templates/functions/encoding/jsonencode
 	// ref: https://github.com/hashicorp/hcl/issues/291#issuecomment-496347585
 	JsonString string `mapstructure:"json_string"`
-	// For JSON templates we keep the map[string]interface{}
-	Json map[string]interface{} `mapstructure:"json" mapstructure-to-hcl2:",skip"`
+	// For JSON templates we keep the map[string]any
+	Json map[string]any `mapstructure:"json" mapstructure-to-hcl2:",skip"`
 
 	ChefEnvironment            string        `mapstructure:"chef_environment"`
 	ChefLicense                string        `mapstructure:"chef_license"`
@@ -97,7 +97,7 @@ type Provisioner struct {
 	communicator      packersdk.Communicator
 	guestOSTypeConfig guestOSTypeConfig
 	guestCommands     *guestexec.GuestCommands
-	generatedData     map[string]interface{}
+	generatedData     map[string]any
 }
 
 type ConfigTemplate struct {
@@ -130,7 +130,7 @@ type InstallChefTemplate struct {
 
 func (p *Provisioner) ConfigSpec() hcldec.ObjectSpec { return p.config.FlatMapstructure().HCL2Spec() }
 
-func (p *Provisioner) Prepare(raws ...interface{}) error {
+func (p *Provisioner) Prepare(raws ...any) error {
 	err := config.Decode(&p.config, &config.DecodeOpts{
 		PluginType:         "chef-client",
 		Interpolate:        true,
@@ -255,7 +255,7 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	return nil
 }
 
-func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, generatedData map[string]interface{}) error {
+func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, generatedData map[string]any) error {
 	p.generatedData = generatedData
 	p.communicator = comm
 
@@ -364,7 +364,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 }
 
 func (p *Provisioner) uploadFile(ui packersdk.Ui, comm packersdk.Communicator, remotePath string, localPath string) error {
-	ui.Message(fmt.Sprintf("Uploading %s...", localPath))
+	ui.Sayf("Uploading %s...", localPath)
 
 	f, err := os.Open(localPath)
 	if err != nil {
@@ -392,7 +392,7 @@ func (p *Provisioner) createConfig(
 	trustedCertsDir string,
 	rubygemsURL string) (string, error) {
 
-	ui.Message("Creating configuration file 'client.rb'")
+	ui.Say("Creating configuration file 'client.rb'")
 
 	// Read the template
 	tpl := DefaultConfigTemplate
@@ -454,9 +454,9 @@ func (p *Provisioner) createClient(ui packersdk.Ui, comm packersdk.Communicator,
 }
 
 func (p *Provisioner) createJson(ui packersdk.Ui, comm packersdk.Communicator) (string, error) {
-	ui.Message("Creating JSON attribute file")
+	ui.Say("Creating JSON attribute file")
 
-	jsonData := make(map[string]interface{})
+	jsonData := make(map[string]any)
 
 	// Copy the configured JSON
 	for k, v := range p.config.Json {
@@ -484,7 +484,7 @@ func (p *Provisioner) createJson(ui packersdk.Ui, comm packersdk.Communicator) (
 
 func (p *Provisioner) createDir(ui packersdk.Ui, comm packersdk.Communicator, dir string) error {
 	ctx := context.TODO()
-	ui.Message(fmt.Sprintf("Creating directory: %s", dir))
+	ui.Sayf("Creating directory: %s", dir)
 
 	cmd := &packersdk.RemoteCmd{Command: p.guestCommands.CreateDir(dir)}
 	if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
@@ -506,18 +506,18 @@ func (p *Provisioner) createDir(ui packersdk.Ui, comm packersdk.Communicator, di
 	return nil
 }
 
-func (p *Provisioner) cleanNode(ui packersdk.Ui, comm packersdk.Communicator, client *chef.Client, node string) error {
+func (p *Provisioner) cleanNode(ui packersdk.Ui, _ packersdk.Communicator, client *chef.Client, node string) error {
 	ui.Say("Cleaning up chef node...")
 	return client.Nodes.Delete(node)
 }
 
-func (p *Provisioner) cleanClient(ui packersdk.Ui, comm packersdk.Communicator, client *chef.Client, node string) error {
+func (p *Provisioner) cleanClient(ui packersdk.Ui, _ packersdk.Communicator, client *chef.Client, node string) error {
 	ui.Say("Cleaning up chef client...")
 	return client.Clients.Delete(node)
 }
 
 func (p *Provisioner) removeDir(ui packersdk.Ui, comm packersdk.Communicator, dir string) error {
-	ui.Message(fmt.Sprintf("Removing directory: %s", dir))
+	ui.Sayf("Removing directory: %s", dir)
 	ctx := context.TODO()
 
 	cmd := &packersdk.RemoteCmd{Command: p.guestCommands.RemoveDir(dir)}
@@ -552,7 +552,7 @@ func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm pac
 			Command: command,
 		}
 
-		ui.Message(fmt.Sprintf("Executing Chef: %s", command))
+		ui.Sayf("Executing Chef: %s", command)
 		if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
 			return err
 		}
@@ -563,11 +563,11 @@ func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm pac
 		case 0:
 			return nil
 		case 35:
-			ui.Message("Reboot has been scheduled in the run state")
+			ui.Say("Reboot has been scheduled in the run state")
 		case 37:
-			ui.Message("Reboot needs to be completed")
+			ui.Say("Reboot needs to be completed")
 		case 213:
-			ui.Message("Chef has exited during a client upgrade")
+			ui.Say("Chef has exited during a client upgrade")
 			continue
 		case packersdk.CmdDisconnect:
 			return fmt.Errorf("received disconnect from remote: exit status: %d", packersdk.CmdDisconnect)
@@ -577,15 +577,13 @@ func (p *Provisioner) executeChef(ctx context.Context, ui packersdk.Ui, comm pac
 			}
 		}
 
-		ui.Message(fmt.Sprintf("Waiting %s before retrying Chef-Client run...", p.config.WaitForRetry))
+		ui.Sayf("Waiting %s before retrying Chef-Client run...", p.config.WaitForRetry)
 		time.Sleep(p.config.WaitForRetry)
 	}
-
-	return nil
 }
 
 func (p *Provisioner) installChef(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, version string) error {
-	ui.Message("Installing Chef...")
+	ui.Say("Installing Chef...")
 
 	p.config.ctx.Data = &InstallChefTemplate{
 		OmnitruckUrl: p.config.OmnitruckUrl,
@@ -597,7 +595,7 @@ func (p *Provisioner) installChef(ctx context.Context, ui packersdk.Ui, comm pac
 		return err
 	}
 
-	ui.Message(command)
+	ui.Say(command)
 
 	cmd := &packersdk.RemoteCmd{Command: command}
 	if err := cmd.RunWithUi(ctx, comm, ui); err != nil {
@@ -612,14 +610,14 @@ func (p *Provisioner) installChef(ctx context.Context, ui packersdk.Ui, comm pac
 	return nil
 }
 
-func (p *Provisioner) deepJsonFix(key string, current interface{}) (interface{}, error) {
+func (p *Provisioner) deepJsonFix(key string, current any) (any, error) {
 	if current == nil {
 		return nil, nil
 	}
 
 	switch c := current.(type) {
-	case []interface{}:
-		val := make([]interface{}, len(c))
+	case []any:
+		val := make([]any, len(c))
 		for i, v := range c {
 			var err error
 			val[i], err = p.deepJsonFix(fmt.Sprintf("%s[%d]", key, i), v)
@@ -631,8 +629,8 @@ func (p *Provisioner) deepJsonFix(key string, current interface{}) (interface{},
 		return val, nil
 	case []uint8:
 		return string(c), nil
-	case map[interface{}]interface{}:
-		val := make(map[string]interface{})
+	case map[any]any:
+		val := make(map[string]any)
 		for k, v := range c {
 			ks, ok := k.(string)
 			if !ok {
@@ -653,7 +651,7 @@ func (p *Provisioner) deepJsonFix(key string, current interface{}) (interface{},
 	}
 }
 
-func (p *Provisioner) processJsonUserVars() (map[string]interface{}, error) {
+func (p *Provisioner) processJsonUserVars() (map[string]any, error) {
 	jsonBytes, err := json.Marshal(p.config.Json)
 	if err != nil {
 		// This really shouldn't happen since we literally just unmarshalled
@@ -686,7 +684,7 @@ func (p *Provisioner) processJsonUserVars() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.Unmarshal([]byte(jsonBytesProcessed), &result); err != nil {
 		return nil, err
 	}
